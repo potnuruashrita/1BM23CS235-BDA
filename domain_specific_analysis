@@ -1,0 +1,161 @@
+/**************************************************
+ * 1. SETUP & CLEANUP
+ **************************************************/
+// Switch to database (Note: This works in mongosh/mongo shell)
+db = db.getSiblingDB('iot_streaming');
+
+// Drop collections if they exist to ensure a clean start
+const collections = ['devices', 'sensors', 'sensor_readings', 'alerts'];
+collections.forEach(coll => {
+    if (db.getCollectionNames().includes(coll)) {
+        db.getCollection(coll).drop();
+        print(`Dropped collection: ${coll}`);
+    }
+});
+
+/**************************************************
+ * 2. INSERT DEVICES
+ **************************************************/
+print("\n--- Inserting Devices ---");
+db.devices.insertMany([
+  {
+    device_id: 1,
+    device_name: "ESP32-Node-01",
+    status: "ACTIVE"
+  },
+  {
+    device_id: 2,
+    device_name: "RaspberryPi-Edge-01",
+    status: "ACTIVE"
+  }
+]);
+
+/**************************************************
+ * 3. INSERT SENSORS
+ **************************************************/
+print("--- Inserting Sensors ---");
+db.sensors.insertMany([
+  {
+    sensor_id: 1,
+    sensor_type: "Temperature",
+    unit: "C"
+  },
+  {
+    sensor_id: 2,
+    sensor_type: "Humidity",
+    unit: "%"
+  },
+  {
+    sensor_id: 3,
+    sensor_type: "Gas",
+    unit: "ppm"
+  }
+]);
+
+/**************************************************
+ * 4. INSERT SENSOR READINGS
+ **************************************************/
+print("--- Inserting Readings ---");
+db.sensor_readings.insertMany([
+  {
+    device_id: 1,
+    sensor_id: 1,
+    reading_value: 36.5,
+    reading_time: new Date("2025-01-01T10:00:00Z")
+  },
+  {
+    device_id: 1,
+    sensor_id: 1,
+    reading_value: 37.2,
+    reading_time: new Date("2025-01-01T10:05:00Z")
+  },
+  {
+    device_id: 2,
+    sensor_id: 2,
+    reading_value: 65.4,
+    reading_time: new Date("2025-01-01T10:10:00Z")
+  },
+  {
+    device_id: 1,
+    sensor_id: 3,
+    reading_value: 410.8,
+    reading_time: new Date("2025-01-01T10:15:00Z")
+  }
+]);
+
+/**************************************************
+ * 5. INSERT ALERTS
+ **************************************************/
+print("--- Inserting Alerts ---");
+db.alerts.insertMany([
+  {
+    device_id: 1,
+    sensor_id: 1,
+    alert_message: "High temperature",
+    alert_level: "HIGH",
+    created_at: new Date("2025-01-01T10:06:00Z")
+  }
+]);
+
+/**************************************************
+ * 6. DESCRIPTIVE ANALYTICS
+ **************************************************/
+print("\n=== DESCRIPTIVE ANALYTICS ===");
+
+print("1. All Sensor Readings (Limit 2):");
+// using toArray() to print the actual data
+printjson(db.sensor_readings.find().limit(2).toArray());
+
+print("\n2. Latest Sensor Readings (Sorted by Time):");
+printjson(db.sensor_readings.find().sort({ reading_time: -1 }).limit(5).toArray());
+
+/**************************************************
+ * 7. DIAGNOSTIC ANALYTICS
+ **************************************************/
+print("\n=== DIAGNOSTIC ANALYTICS ===");
+
+print("1. High Sensor Values (> 35):");
+printjson(db.sensor_readings.find({
+  reading_value: { $gt: 35 }
+}).toArray());
+
+print("\n2. Total Alert Count:");
+print(db.alerts.countDocuments());
+
+/**************************************************
+ * 8. PREDICTIVE ANALYTICS (TREND PREP)
+ **************************************************/
+print("\n=== PREDICTIVE ANALYTICS ===");
+
+print("1. Average Reading (Grouped by Sensor Type):");
+// Fixed logic: Grouping by sensor_id ensures we don't average Temperature with Gas
+const avgCursor = db.sensor_readings.aggregate([
+  {
+    $group: {
+      _id: "$sensor_id",
+      avg_value: { $avg: "$reading_value" }
+    }
+  }
+]);
+printjson(avgCursor.toArray());
+
+/**************************************************
+ * 9. PRESCRIPTIVE ANALYTICS
+ **************************************************/
+print("\n=== PRESCRIPTIVE ANALYTICS ===");
+
+print("1. Identifying Sensors Needing Action (> 40):");
+const problematicReadings = db.sensor_readings.find({
+  reading_value: { $gt: 40 }
+}).toArray();
+printjson(problematicReadings);
+
+print("\n2. Taking Action: Deactivating Device 1...");
+const updateResult = db.devices.updateOne(
+  { device_id: 1 },
+  { $set: { status: "INACTIVE" } }
+);
+print(`Matched: ${updateResult.matchedCount}, Modified: ${updateResult.modifiedCount}`);
+
+print("\n3. Verify Device Status:");
+printjson(db.devices.find({ device_id: 1 }).toArray());
