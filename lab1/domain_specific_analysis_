@@ -1,0 +1,84 @@
+USE mysql;
+DROP DATABASE IF EXISTS iot_streaming;
+CREATE DATABASE iot_streaming;
+USE iot_streaming;
+CREATE TABLE devices (
+    device_id INT AUTO_INCREMENT PRIMARY KEY,
+    device_name VARCHAR(100),
+    device_type VARCHAR(50),
+    status VARCHAR(20),
+    registered_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+CREATE TABLE sensors (
+    sensor_id INT AUTO_INCREMENT PRIMARY KEY,
+    sensor_name VARCHAR(100),
+    sensor_type VARCHAR(50),     -- Temperature, Humidity, Pressure
+    unit VARCHAR(20),            -- °C, %, ppm
+    location VARCHAR(100),
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+CREATE TABLE sensor_readings (
+    reading_id BIGINT AUTO_INCREMENT PRIMARY KEY,
+    device_id INT,
+    sensor_id INT,
+    reading_value DECIMAL(10,2),
+    reading_time TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (device_id) REFERENCES devices(device_id),
+    FOREIGN KEY (sensor_id) REFERENCES sensors(sensor_id)
+);
+CREATE TABLE alerts (
+    alert_id INT AUTO_INCREMENT PRIMARY KEY,
+    sensor_id INT,
+    device_id INT,
+    alert_message VARCHAR(255),
+    alert_level VARCHAR(20),     -- LOW, MEDIUM, HIGH
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (sensor_id) REFERENCES sensors(sensor_id),
+    FOREIGN KEY (device_id) REFERENCES devices(device_id)
+);
+INSERT INTO devices (device_name, device_type, status)
+VALUES
+('ESP32-Node-01', 'Microcontroller', 'ACTIVE'),
+('RaspberryPi-Edge-01', 'Edge Device', 'ACTIVE');
+INSERT INTO sensors (sensor_name, sensor_type, unit, location)
+VALUES
+('Temp Sensor A', 'Temperature', '°C', 'Factory Floor'),
+('Humidity Sensor B', 'Humidity', '%', 'Warehouse'),
+('Gas Sensor C', 'Gas', 'ppm', 'Chemical Lab');
+INSERT INTO sensor_readings (device_id, sensor_id, reading_value)
+VALUES
+(1, 1, 36.5),
+(1, 1, 37.2),
+(2, 2, 65.4),
+(2, 2, 67.1),
+(1, 3, 410.8);
+INSERT INTO alerts (sensor_id, device_id, alert_message, alert_level)
+VALUES
+(1, 1, 'Temperature exceeded safe limit', 'HIGH'),
+(3, 1, 'Gas concentration rising', 'MEDIUM');
+SELECT * FROM devices;
+SELECT * FROM sensors;
+SELECT * FROM sensor_readings;
+SELECT * FROM alerts;
+SELECT *
+FROM sensor_readings
+ORDER BY reading_time DESC
+LIMIT 5;
+SELECT *
+FROM sensor_readings
+WHERE reading_value > 35;
+SELECT COUNT(*) AS total_alerts
+FROM alerts;
+SELECT AVG(reading_value) AS avg_reading
+FROM sensor_readings;
+SELECT reading_time, reading_value
+FROM sensor_readings
+ORDER BY reading_time;
+SELECT *
+FROM sensor_readings
+WHERE reading_value > 40;
+UPDATE devices
+SET status = 'INACTIVE'
+WHERE device_id = 1;
+
+
